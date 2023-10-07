@@ -35,6 +35,22 @@
      </widget>
     </item>
     <item>
+     <spacer name="horizontalSpacer_2">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeType">
+       <enum>QSizePolicy::Preferred</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
      <widget class="QFrame" name="frame2">
       <property name="frameShape">
        <enum>QFrame::Box</enum>
@@ -43,6 +59,13 @@
        <enum>QFrame::Raised</enum>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="QLabel" name="request_title_label">
+         <property name="text">
+          <string>Request</string>
+         </property>
+        </widget>
+       </item>
        <item>
         <layout class="QHBoxLayout" name="request_bar_layout">
          <item>
@@ -65,23 +88,59 @@
         </layout>
        </item>
        <item>
-        <spacer name="verticalSpacer">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
+        <widget class="QFrame" name="request_line_frame">
+         <property name="frameShape">
+          <enum>QFrame::HLine</enum>
          </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Preferred</enum>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
          </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>0</width>
-           <height>50</height>
-          </size>
-         </property>
-        </spacer>
+        </widget>
        </item>
        <item>
-        <widget class="QLabel" name="response_label">
+        <widget class="QTabWidget" name="tabWidget">
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
+         <widget class="QWidget" name="body_tab">
+          <attribute name="title">
+           <string>Body</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_3">
+           <item>
+            <widget class="QComboBox" name="content_type_combo_box"/>
+           </item>
+           <item>
+            <widget class="QPlainTextEdit" name="body_text_edit"/>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="headers_tab">
+          <attribute name="title">
+           <string>Headers</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_4">
+           <item>
+            <widget class="QPlainTextEdit" name="headers_text_edit"/>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QFrame" name="frame3">
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QLabel" name="response_title_label">
          <property name="text">
           <string>Response</string>
          </property>
@@ -97,28 +156,9 @@
       </layout>
      </widget>
     </item>
-    <item>
-     <widget class="QFrame" name="frame3">
-      <property name="frameShape">
-       <enum>QFrame::Box</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
-      </property>
-      <layout class="QHBoxLayout" name="horizontalLayout_4">
-       <item>
-        <widget class="QLabel" name="label_2">
-         <property name="text">
-          <string>Placeholder (TODO)</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
    </layout>
   </widget>
-  <widget class="QMenuBar" name="menubar">
+  <widget class="QMenuBar" name="main_menu_bar">
    <property name="geometry">
     <rect>
      <x>0</x>
@@ -127,41 +167,35 @@
      <height>22</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuFile">
+   <widget class="QMenu" name="file_menu">
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionOpen"/>
+    <addaction name="open_action"/>
     <addaction name="separator"/>
-    <addaction name="actionExit"/>
+    <addaction name="exit_action"/>
    </widget>
-   <widget class="QMenu" name="menuEdit">
-    <property name="title">
-     <string>Edit</string>
-    </property>
-   </widget>
-   <widget class="QMenu" name="menuHelp">
+   <widget class="QMenu" name="help_menu">
     <property name="title">
      <string>Help</string>
     </property>
-    <addaction name="actionAbout"/>
+    <addaction name="about_action"/>
    </widget>
-   <addaction name="menuFile"/>
-   <addaction name="menuEdit"/>
-   <addaction name="menuHelp"/>
+   <addaction name="file_menu"/>
+   <addaction name="help_menu"/>
   </widget>
   <widget class="QStatusBar" name="status_bar"/>
-  <action name="actionOpen">
+  <action name="open_action">
    <property name="text">
     <string>Open</string>
    </property>
   </action>
-  <action name="actionExit">
+  <action name="exit_action">
    <property name="text">
     <string>Exit</string>
    </property>
   </action>
-  <action name="actionAbout">
+  <action name="about_action">
    <property name="text">
     <string>About</string>
    </property>

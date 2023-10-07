@@ -1,0 +1,4 @@
+flake8==6.1.0
+Flask==3.0.0
+PySide6==6.5.3
+requests==2.31.0

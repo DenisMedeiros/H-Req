@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QTreeWidget, QTreeWidgetItem, QFileDialog
 )
 from PySide6.QtCore import QFile, QIODevice
-from PySide6.QtGui import QIcon, QAction
+from PySide6.QtGui import QIcon, QAction, QShortcut, QKeySequence
 
 REQUEST_TIMEOUT_SEC = 30
 
@@ -136,6 +136,7 @@ class Application:
         # Response area config.
         self.response_text_edit: QTextBrowser = self.window.frame3.findChild(QTextBrowser, name="response_text_edit")
         self.response_text_edit.setStyleSheet("QTextBrowser { background: #ffffff; }")
+        self.response_text_edit.setPlaceholderText("Response will show up here...")
 
         # Status bar config.
         self.status_bar: QStatusBar = self.window.status_bar
@@ -302,6 +303,8 @@ class Application:
         if file_path:
             with open(file_path, "r") as file:
                 data = json.load(file)
+        else:
+            return
 
         # Populate request history section (overwrite everything).
         for http_verb, values in data.items():

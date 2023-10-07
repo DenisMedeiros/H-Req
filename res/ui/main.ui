@@ -54,6 +54,13 @@
            </column>
           </widget>
          </item>
+         <item>
+          <widget class="QPushButton" name="delete_history_entry_push_button">
+           <property name="text">
+            <string>Delete</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
       </layout>

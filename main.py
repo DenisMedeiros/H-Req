@@ -7,7 +7,10 @@ import requests
 import argparse
 
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QApplication, QMainWindow, QComboBox, QPushButton, QLineEdit, QTextBrowser, QStatusBar, QPlainTextEdit, QMenu, QMessageBox, QTreeWidget, QTreeWidgetItem
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QComboBox, QPushButton, QLineEdit, QTextBrowser, QStatusBar, QPlainTextEdit, QMenu,
+    QMessageBox, QTreeWidget, QTreeWidgetItem, QFileDialog
+)
 from PySide6.QtCore import QFile, QIODevice
 from PySide6.QtGui import QIcon, QAction
 
@@ -47,7 +50,9 @@ class Application:
         exit_action = file_menu.findChildren(QAction, name="exit_action")
         file_menu_actions = file_menu.actions()
         open_action: QAction = file_menu_actions[0]
+        open_action.triggered.connect(self.load_request_history)
         save_action: QAction = file_menu_actions[1]
+        save_action.triggered.connect(self.save_request_history)
         separator: QAction = file_menu_actions[2]
         exit_action: QAction = file_menu_actions[3]
         exit_action.triggered.connect(self.exit)
@@ -74,6 +79,12 @@ class Application:
         for http_verb in http_verbs:
             self.request_history_http_verbs[http_verb] = QTreeWidgetItem(self.request_history_tree, [http_verb])
         self.request_history_tree.itemSelectionChanged.connect(self.on_request_history_selection_changed)
+
+        self.delete_history_entry_push_button: QPushButton = self.window.frame1.findChild(QPushButton, name="delete_history_entry_push_button")
+        self.delete_history_entry_push_button.setEnabled(False)
+        self.delete_history_entry_push_button.setStyleSheet("QPushButton { background: #d4a373; }")
+        self.delete_history_entry_push_button.clicked.connect(self.delete_request_history_entry)
+
 
         # Request type config.
         request_content_types = ["PLAIN", "JSON", "XML"]
@@ -230,9 +241,11 @@ class Application:
         about_msg_box.exec_()
 
     def on_request_history_selection_changed(self):
-        selected_request = self.request_history_tree.selectedItems()[0]
+        selected_request: QTreeWidgetItem = self.request_history_tree.selectedItems()[0]
         if not hasattr(selected_request, "_request_fields"):
+            self.delete_history_entry_push_button.setEnabled(False)
             return
+        self.delete_history_entry_push_button.setEnabled(True)
         request_fields = selected_request._request_fields
         # Since the request fields is present, update the app fields.
         self.http_verbs_combo_box.setCurrentIndex(self.http_verbs_map[request_fields["selected_http_verb"]])
@@ -240,6 +253,68 @@ class Application:
         self.content_type_combo_box.setCurrentIndex(self.request_content_types_map[request_fields["content_type_text"]])
         self.body_text_edit.setPlainText(request_fields["body_text"])
         self.headers_text_edit.setPlainText(request_fields["headers_text"])
+
+    def delete_request_history_entry(self):
+        selected_request: QTreeWidgetItem = self.request_history_tree.selectedItems()[0]
+        if not hasattr(selected_request, "_request_fields"):
+            self.delete_history_entry_push_button.setEnabled(False)
+            return
+        http_verb_item: QTreeWidgetItem = selected_request.parent()
+        http_verb = http_verb_item.text(0)
+        http_verb_item.removeChild(selected_request)
+        # Fix names.
+        for i in range(http_verb_item.childCount()):
+            http_verb_item.child(i).setText(0, f"{http_verb} #{i+1}")
+
+
+    def save_request_history(self):
+        # Prepare data to be saved.
+        # TODO: Make sure no requests are repeated.
+        data = {}
+        for http_verb in self.http_verbs_map:
+            http_verb_tree_item: QTreeWidgetItem = self.request_history_http_verbs[http_verb]
+            # data[http_verb] = [child._request_fields for child in http_verb_tree_item.takeChildren()]
+            data[http_verb] = [http_verb_tree_item.child(i)._request_fields for i in range(http_verb_tree_item.childCount())]
+
+        options = QFileDialog.Options()
+        options |= QFileDialog.ReadOnly
+        file_dialog = QFileDialog()
+        # Obtain file path.
+        file_path, _ = file_dialog.getSaveFileName(self.window, "Save File", "", "JSON Files (*.json);;All Files (*)", options=options)
+
+        # Save request history
+        if file_path:
+            with open(file_path, "w") as file:
+                json.dump(data, file, indent=4)
+
+
+    def load_request_history(self):
+        # Prepare data to be saved.
+        # TODO: Make sure no requests are repeated.
+
+        options = QFileDialog.Options()
+        options |= QFileDialog.ReadOnly
+        file_dialog = QFileDialog()
+        # Obtain file path.
+        file_path, _ = file_dialog.getOpenFileName(self.window, "Open File", "", "JSON Files (*.json);;All Files (*)", options=options)
+
+        # Load request history.
+        if file_path:
+            with open(file_path, "r") as file:
+                data = json.load(file)
+
+        # Populate request history section (overwrite everything).
+        for http_verb, values in data.items():
+            for entry in values:
+                next_request_id = self.request_history_http_verbs[http_verb].childCount() + 1
+                request_history_entry = QTreeWidgetItem(self.request_history_http_verbs[http_verb], [f"{http_verb} #{next_request_id}"])
+                request_history_entry._request_fields = {
+                    "selected_http_verb": entry["selected_http_verb"],
+                    "selected_url": entry["selected_url"],
+                    "content_type_text": entry["content_type_text"],
+                    "body_text": entry["body_text"],
+                    "headers_text": entry["headers_text"],
+                }
 
 
 def main():

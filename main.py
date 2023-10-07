@@ -7,7 +7,7 @@ import requests
 import argparse
 
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QApplication, QMainWindow, QComboBox, QPushButton, QLineEdit, QTextBrowser, QStatusBar, QPlainTextEdit, QMenu, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QComboBox, QPushButton, QLineEdit, QTextBrowser, QStatusBar, QPlainTextEdit, QMenu, QMessageBox, QTreeWidget, QTreeWidgetItem
 from PySide6.QtCore import QFile, QIODevice
 from PySide6.QtGui import QIcon, QAction
 
@@ -47,8 +47,9 @@ class Application:
         exit_action = file_menu.findChildren(QAction, name="exit_action")
         file_menu_actions = file_menu.actions()
         open_action: QAction = file_menu_actions[0]
-        # The action 1 is simply a separator.
-        exit_action: QAction = file_menu_actions[2]
+        save_action: QAction = file_menu_actions[1]
+        separator: QAction = file_menu_actions[2]
+        exit_action: QAction = file_menu_actions[3]
         exit_action.triggered.connect(self.exit)
 
         # Help menu config.
@@ -57,24 +58,31 @@ class Application:
         about_action: QAction = help_menu_actions[0]
         about_action.triggered.connect(self.about)
 
-
         # HTTP Verb config.
         http_verbs = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
-        http_verbs_map = {verb:i for i, verb in enumerate(http_verbs)}
+        self.http_verbs_map = {verb:i for i, verb in enumerate(http_verbs)}
         self.http_verbs_combo_box: QComboBox = self.window.frame2.findChild(QComboBox, name="http_verbs_combo_box")
         self.http_verbs_combo_box.addItems(http_verbs)
         self.http_verbs_combo_box.setStyleSheet("#http_verbs_combo_box { background: #d4a373; }")
         if initial_values is not None and "method" in initial_values:
-            self.http_verbs_combo_box.setCurrentIndex(http_verbs_map[initial_values["method"].upper()])
+            self.http_verbs_combo_box.setCurrentIndex(self.http_verbs_map[initial_values["method"].upper()])
+
+        # Requests history config.
+        self.request_history_tree: QMenu = self.window.frame1.findChild(QTreeWidget, name="request_history_tree")
+        self.request_history_tree.setSelectionMode(QTreeWidget.SingleSelection)
+        self.request_history_http_verbs = {}
+        for http_verb in http_verbs:
+            self.request_history_http_verbs[http_verb] = QTreeWidgetItem(self.request_history_tree, [http_verb])
+        self.request_history_tree.itemSelectionChanged.connect(self.on_request_history_selection_changed)
 
         # Request type config.
         request_content_types = ["PLAIN", "JSON", "XML"]
-        request_content_types_map = {verb:i for i, verb in enumerate(request_content_types)}
+        self.request_content_types_map = {verb:i for i, verb in enumerate(request_content_types)}
         self.content_type_combo_box: QComboBox = self.window.frame2.findChild(QComboBox, name="content_type_combo_box")
         self.content_type_combo_box.setStyleSheet("QComboBox { background: #d4a373; }")
         self.content_type_combo_box.addItems(request_content_types)
         if initial_values is not None and "content_type" in initial_values:
-            self.content_type_combo_box.setCurrentIndex(request_content_types_map[initial_values["content_type"].upper()])
+            self.content_type_combo_box.setCurrentIndex(self.request_content_types_map[initial_values["content_type"].upper()])
 
         # URL line.
         self.url_line_edit: QLineEdit = self.window.frame2.findChild(QLineEdit, name="url_line_edit")
@@ -130,35 +138,38 @@ class Application:
         logging.info(f"Processing '{selected_http_verb}' request to URL '{selected_url}'...")
 
         # Define content-type.
-        selected_content_type = self.content_type_combo_box.currentText()
-        if selected_content_type == "PLAIN":
+        content_type_text = self.content_type_combo_box.currentText()
+        if content_type_text == "PLAIN":
             request_content_type = "text/plain"
-        elif selected_content_type == "JSON":
+        elif content_type_text == "JSON":
             request_content_type = "application/json"
-        elif selected_content_type == "XML":
+        elif content_type_text == "XML":
             request_content_type = "application/xml "
 
         # Define data depending on the method.
+        body_text = self.body_text_edit.toPlainText()
         data = None
-        if selected_http_verb in {"POST", "PUT", "PATCH"}:
-            if request_content_type == "text/plain":
-                data = self.body_text_edit.toPlainText()
-            elif request_content_type == "application/json":
-                # Validate JSON.
-                data = self.body_text_edit.toPlainText()
-            elif request_content_type == "application/xml":
-                # Validate XML.
-                data = self.body_text_edit.toPlainText()
+        if body_text.strip():
+            data = body_text
+            if selected_http_verb in {"POST", "PUT", "PATCH"}:
+                if request_content_type == "text/plain":
+                    data = self.body_text_edit.toPlainText()
+                elif request_content_type == "application/json":
+                    # Validate JSON.
+                    data = self.body_text_edit.toPlainText()
+                elif request_content_type == "application/xml":
+                    # Validate XML.
+                    data = self.body_text_edit.toPlainText()
 
         headers = {
             "Content-Type": request_content_type
         }
 
         # Include headers if they are defined.
-        raw_headers = self.headers_text_edit.toPlainText()
-        if raw_headers.strip():
+        headers_text = self.headers_text_edit.toPlainText()
+        if headers_text.strip():
             try:
-                custom_headers = json.loads(raw_headers)
+                custom_headers = json.loads(headers_text)
                 headers.update(custom_headers)
             except Exception as err:
                 error_msg = f"Failed to parse given headers: {err}"
@@ -167,6 +178,18 @@ class Application:
                 return
 
         response_content_type = "text/html"
+
+        # Save this request in the request history.
+        next_request_id = self.request_history_http_verbs[selected_http_verb].childCount() + 1
+        request_history_entry = QTreeWidgetItem(self.request_history_http_verbs[selected_http_verb], [f"{selected_http_verb} #{next_request_id}"])
+        request_history_entry._request_fields = {
+            "selected_http_verb": selected_http_verb,
+            "selected_url": selected_url,
+            "content_type_text": content_type_text,
+            "body_text": body_text,
+            "headers_text": headers_text,
+        }
+
         try:
             response = requests.request(selected_http_verb.lower(), selected_url, data=data, headers=headers, timeout=REQUEST_TIMEOUT_SEC)
             response.raise_for_status()
@@ -205,6 +228,18 @@ class Application:
         )
         about_msg_box.setText(text)
         about_msg_box.exec_()
+
+    def on_request_history_selection_changed(self):
+        selected_request = self.request_history_tree.selectedItems()[0]
+        if not hasattr(selected_request, "_request_fields"):
+            return
+        request_fields = selected_request._request_fields
+        # Since the request fields is present, update the app fields.
+        self.http_verbs_combo_box.setCurrentIndex(self.http_verbs_map[request_fields["selected_http_verb"]])
+        self.url_line_edit.setText(request_fields["selected_url"])
+        self.content_type_combo_box.setCurrentIndex(self.request_content_types_map[request_fields["content_type_text"]])
+        self.body_text_edit.setPlainText(request_fields["body_text"])
+        self.headers_text_edit.setPlainText(request_fields["headers_text"])
 
 
 def main():

@@ -1,3 +1,4 @@
+import os
 import sys
 import json
 import signal
@@ -11,8 +12,8 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QComboBox, QPushButton, QLineEdit, QTextBrowser, QStatusBar, QPlainTextEdit, QMenu,
     QMessageBox, QTreeWidget, QTreeWidgetItem, QFileDialog
 )
-from PySide6.QtCore import QFile, QIODevice
-from PySide6.QtGui import QIcon, QAction, QShortcut, QKeySequence
+from PySide6.QtCore import QFile, QIODevice, QCoreApplication, Qt
+from PySide6.QtGui import QIcon, QAction
 
 REQUEST_TIMEOUT_SEC = 30
 
@@ -22,7 +23,8 @@ def format_json(payload: dict) -> str:
 class Application:
 
     def __init__(self, ui_file_name: str, icon_name: str, initial_values: dict = None):
-
+        # This is needed to prevent a warning.
+        QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
         self.app = QApplication(sys.argv)
         self.app.setStyle("fusion")
         # Make app close when Ctrl+C is sent.
@@ -82,9 +84,12 @@ class Application:
 
         self.delete_history_entry_push_button: QPushButton = self.window.frame1.findChild(QPushButton, name="delete_history_entry_push_button")
         self.delete_history_entry_push_button.setEnabled(False)
-        self.delete_history_entry_push_button.setStyleSheet("QPushButton { background: #d4a373; }")
-        self.delete_history_entry_push_button.clicked.connect(self.delete_request_history_entry)
+        self.delete_history_entry_push_button.setStyleSheet((
+            "QPushButton { background: #d4a373; }"
+            "QPushButton:disabled { background: #f8f1e9; color: #555555; }"
 
+        ))
+        self.delete_history_entry_push_button.clicked.connect(self.delete_request_history_entry)
 
         # Request type config.
         request_content_types = ["PLAIN", "JSON", "XML"]
@@ -191,17 +196,8 @@ class Application:
 
         response_content_type = "text/html"
 
-        # Save this request in the request history.
-        next_request_id = self.request_history_http_verbs[selected_http_verb].childCount() + 1
-        request_history_entry = QTreeWidgetItem(self.request_history_http_verbs[selected_http_verb], [f"{selected_http_verb} #{next_request_id}"])
-        request_history_entry._request_fields = {
-            "selected_http_verb": selected_http_verb,
-            "selected_url": selected_url,
-            "content_type_text": content_type_text,
-            "body_text": body_text,
-            "headers_text": headers_text,
-        }
 
+        timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S%Z")
         try:
             response = requests.request(selected_http_verb.lower(), selected_url, data=data, headers=headers, timeout=REQUEST_TIMEOUT_SEC)
             response.raise_for_status()
@@ -212,15 +208,25 @@ class Application:
             elif response.headers["Content-Type"].startswith("application/json"):
                 response_content_type = "application/json"
                 self.response_text_edit.setText(format_json(response.json()))
+            response_size_bytes = len(response.content)
+            self.status_bar.showMessage(f"Response: Timestamp={timestamp}, Content-Type={response_content_type}, Code={response.status_code}, Elapsed={response.elapsed}, Size={response_size_bytes} B.")
+
+            # Save this request in the request history.
+            next_request_id = self.request_history_http_verbs[selected_http_verb].childCount() + 1
+            request_history_entry = QTreeWidgetItem(self.request_history_http_verbs[selected_http_verb], [f"{selected_http_verb} #{next_request_id}"])
+            request_history_entry._request_fields = {
+                "selected_http_verb": selected_http_verb,
+                "selected_url": selected_url,
+                "content_type_text": content_type_text,
+                "body_text": body_text,
+                "headers_text": headers_text,
+            }
+
         except Exception as err:
             error_msg = f"Request failed: {err}"
             logging.error(error_msg)
             self.response_text_edit.setText(error_msg)
-
-        response_size_bytes = len(response.content)
-        timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S%Z")
-        self.status_bar.showMessage(f"Response: Timestamp={timestamp}, Content-Type={response_content_type}, Code={response.status_code}, Elapsed={response.elapsed}, Size={response_size_bytes} B.")
-
+            self.status_bar.showMessage(error_msg)
 
     def run(self) -> int:
         # Show window
@@ -319,19 +325,19 @@ class Application:
                     "headers_text": entry["headers_text"],
                 }
 
-
 def main():
+    """Main function.
+    """
     logging.basicConfig(encoding='utf-8', level=logging.DEBUG)
     logging.info("Starting app...")
-
     parser = argparse.ArgumentParser(description='H-Req')
     parser.add_argument('-u','--url', help='URL.', default=None)
     parser.add_argument('-m','--method', help='HTTP method.', default=None)
     parser.add_argument('-t','--content-type', help='HTTP Content type for payload.', default=None)
+
     # TODO: Better support body and headers.
     parser.add_argument('-b','--body', help='The HTTP request body.', default=None)
     parser.add_argument('-d','--headers', help='The HTTP request headers.', default=None)
-
     args = vars(parser.parse_args())
 
     # Check if any parameter was given.
@@ -339,9 +345,14 @@ def main():
     if any([v is not None for v in args.values()]):
         initial_values = args
 
-    app = Application("res/ui/main.ui", "res/icons/main.png", initial_values)
-    return_code = app.run()
+    # Get app directory.
+    app_dir = os.path.dirname(os.path.realpath(__file__))
+    main_ui = os.path.join(app_dir, "res", "ui", "main.ui")
+    main_icon = os.path.join(app_dir, "res", "icons", "main.svg")
 
+    # Run app.
+    app = Application(main_ui, main_icon, initial_values)
+    return_code = app.run()
     logging.info("App finished.")
     sys.exit(return_code)
 

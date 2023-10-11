@@ -23,7 +23,7 @@ To run the application, follow the steps bellow.
     ```bash
     python3 -m pip install -r requirements.txt
     ```
-    If you want to install additional libraries for deveopment, also install the libraries listed in [requirements-dev.txt](./requirements-dev.txt).
+    If you want to install additional libraries for development, also install the libraries listed in [requirements-dev.txt](./requirements-dev.txt).
 
     ```bash
     python3 -m pip install -r requirements-dev.txt

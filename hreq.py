@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QTreeWidget, QTreeWidgetItem, QFileDialog
 )
 from PySide6.QtCore import QFile, QIODevice, QCoreApplication, Qt
-from PySide6.QtGui import QIcon, QAction
+from PySide6.QtGui import QIcon, QAction, QGuiApplication
 
 
 REQUEST_TIMEOUT_SEC = 30
@@ -86,6 +86,12 @@ class HReqApplication(QApplication):
 
         # Status bar config.
         self.status_bar: QStatusBar = self.window.status_bar
+
+        # Move window to center of the screen.
+        center_point = QGuiApplication.primaryScreen().availableGeometry().center()
+        frame_geometry = self.window.frameGeometry()
+        frame_geometry.moveCenter(center_point)
+        self.window.move(frame_geometry.topLeft())
 
     def init_menus(self):
         """Initialize menus.
@@ -398,7 +404,9 @@ class HReqApplication(QApplication):
 def main():
     """Main function.
     """
-    logging.basicConfig(encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(
+        encoding='utf-8', level=logging.DEBUG,
+        format="%(asctime)s :: %(levelname)s :: %(name)s :: %(message)s")
     logging.info("Starting app...")
     parser = argparse.ArgumentParser(description='H-Req')
     parser.add_argument('-u', '--url', help='URL.', default=None)

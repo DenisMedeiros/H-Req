@@ -2,6 +2,8 @@
 
 A simple GUI tool to process HTTP requests written in Python + Qt.
 
+![./docs/images/hreq.png](./docs/images/hreq.png)
+
 Important notes:
 
 - All UI files are designed using [QtDesigner](https://doc.qt.io/qt-5/qtdesigner-manual.html).
